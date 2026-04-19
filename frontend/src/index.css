@@ -44,6 +44,8 @@ body {
   min-height: 100dvh;
   background-color: transparent;
   color: #111827;
+  /* Home indicator / gesture bar */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (prefers-color-scheme: dark) {

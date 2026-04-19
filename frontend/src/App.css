@@ -1,14 +1,21 @@
 .container {
-  width: min(760px, calc(100% - 2rem));
-  margin: 2rem auto;
+  width: min(
+    760px,
+    calc(100% - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
+  );
+  margin: clamp(1rem, 4vw, 2rem) auto;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  box-sizing: border-box;
 }
 
 .container h1 {
   color: #0f172a;
   margin-bottom: 0.25rem;
+  font-size: clamp(1.35rem, 2.5vw + 0.85rem, 2rem);
+  line-height: 1.15;
+  word-wrap: break-word;
 }
 
 .subtitle {
@@ -73,6 +80,8 @@
   justify-content: center;
   gap: 0.55rem;
   min-width: 10.5rem;
+  min-height: 2.75rem; /* ~44px touch target */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn-spinner {
@@ -144,6 +153,14 @@
   }
 }
 
+/* Narrow phones: full-width primary action */
+@media (max-width: 480px) {
+  .card button.submit-btn {
+    width: 100%;
+    min-width: unset;
+  }
+}
+
 .result {
   color: #0f172a;
 }
@@ -156,6 +173,8 @@
 .result p {
   margin: 0.45rem 0;
   color: #1e293b;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .result strong {
@@ -167,6 +186,8 @@
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .result a:hover {
