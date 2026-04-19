@@ -18,6 +18,28 @@ function formatApiError(payload) {
   return 'Request failed.'
 }
 
+/** Normalize API zestimate (number, string, $0, etc.); null if not parseable. */
+function parseZestimateNumber(raw) {
+  if (raw == null) return null
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? raw : null
+  }
+  const cleaned = String(raw)
+    .trim()
+    .replace(/[$€£]/g, '')
+    .replace(/,/g, '')
+    .replace(/\s+/g, '')
+  if (cleaned === '' || cleaned === '-') return null
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : null
+}
+
+function formatZestimateLabel(raw) {
+  const n = parseZestimateNumber(raw)
+  if (n === null || n === 0) return 'Not available'
+  return `$${n.toLocaleString()}`
+}
+
 function App() {
   const [address, setAddress] = useState('')
   const [loading, setLoading] = useState(false)
@@ -145,9 +167,7 @@ function App() {
           <p><strong>Address:</strong> {result.address}</p>
           <p>
             <strong>Zestimate:</strong>{' '}
-            {Number(result.zestimate) === 0
-              ? 'Not available'
-              : `$${Number(result.zestimate).toLocaleString()}`}
+            {formatZestimateLabel(result.zestimate ?? result.Zestimate)}
           </p>
           <p>
             <strong>Property URL:</strong>{' '}
