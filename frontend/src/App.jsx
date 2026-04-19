@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { shouldValidateOnBlur, validateUsPropertyAddress } from './addressValidation'
 import './App.css'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+const rawApiBase = (import.meta.env.VITE_API_BASE_URL ?? '').trim()
+const API_BASE = rawApiBase.replace(/\/+$/, '')
+const DEV_FALLBACK_API_BASE = 'http://127.0.0.1:8000'
 
 /** Shown as placeholder only; field starts empty. */
 const ADDRESS_PLACEHOLDER = '525 W Prospect Street #A, Seattle, WA 98119'
@@ -56,9 +58,17 @@ function App() {
       return
     }
 
+    const resolvedApiBase = API_BASE || (import.meta.env.DEV ? DEV_FALLBACK_API_BASE : '')
+    if (!resolvedApiBase) {
+      setError(
+        'Frontend is missing VITE_API_BASE_URL in production. Set it in Vercel environment variables and redeploy.'
+      )
+      return
+    }
+
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE}/zestimate`, {
+      const response = await fetch(`${resolvedApiBase}/zestimate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address: local.normalized }),
@@ -133,7 +143,12 @@ function App() {
         <section className="card result">
           <h2>Result</h2>
           <p><strong>Address:</strong> {result.address}</p>
-          <p><strong>Zestimate:</strong> ${Number(result.zestimate).toLocaleString()}</p>
+          <p>
+            <strong>Zestimate:</strong>{' '}
+            {Number(result.zestimate) === 0
+              ? 'Not available'
+              : `$${Number(result.zestimate).toLocaleString()}`}
+          </p>
           <p>
             <strong>Property URL:</strong>{' '}
             <a href={result.property_url} target="_blank" rel="noreferrer">
