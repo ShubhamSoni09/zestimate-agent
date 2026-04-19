@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Override in shell or .env — comma-separated UI origins
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+    volumes:
+      # Optional: mount cookies without baking them into the image
+      - ./cookies:/app/cookies:ro
