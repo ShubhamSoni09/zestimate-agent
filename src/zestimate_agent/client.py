@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
 from urllib.parse import quote_plus, unquote, urlsplit, urlunsplit
@@ -156,9 +157,20 @@ def _playwright_proxy_from_env() -> dict[str, str] | None:
 def _retry_headed_when_blocked() -> bool:
     """If headless hits a bot wall, retry once with a visible browser (same cookies)."""
     raw = os.getenv("ZILLOW_RETRY_HEADED_ON_BLOCK", "1").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
     if not raw:
         return True
-    return raw not in ("0", "false", "no", "off")
+    # Headed Chromium needs a display (Render/Fly/Docker typically have none → crash → 500).
+    if sys.platform == "linux" and not os.getenv("DISPLAY", "").strip():
+        if os.getenv("ZILLOW_ALLOW_HEADED_IN_CONTAINER", "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
+            return True
+        return False
+    return True
 
 
 def _delay_ms(env_name: str, default: int) -> int:
@@ -262,7 +274,7 @@ class ZillowEstimateAgent:
         if self.headless and _retry_headed_when_blocked():
             modes.append(False)
 
-        zestimate: int | None = None
+        zestimate: int | str | None = None
         property_url: str | None = None
         last_error: Exception | None = None
         completed = False

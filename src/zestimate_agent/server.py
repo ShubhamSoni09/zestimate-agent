@@ -7,6 +7,7 @@ import sys
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import Literal
 
 from .env import load_project_dotenv
 
@@ -30,7 +31,7 @@ class ZestimateRequest(BaseModel):
 
 class ZestimateResponse(BaseModel):
     address: str
-    zestimate: int
+    zestimate: int | Literal["not available"]
     property_url: str
 
 

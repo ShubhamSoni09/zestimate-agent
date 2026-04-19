@@ -91,28 +91,71 @@ def _property_page_from_row(row: dict) -> str | None:
     return None
 
 
-def _best_home_value_int(row: dict) -> tuple[int, str] | None:
-    """
-    Top-level valuation fields (avoid nearbyHomes / rentZestimate).
-    Order: zestimate, price, taxAssessedValue — matches many Zillow JSON rows when zestimate is null.
-    """
-    for key, label in (
-        ("zestimate", "zestimate"),
-        ("price", "price"),
-        ("taxAssessedValue", "taxAssessedValue"),
-    ):
-        if key not in row:
-            continue
-        val = row[key]
-        if val is None:
-            continue
-        if isinstance(val, (int, float)):
-            return int(val), label
-        if isinstance(val, str):
-            n = _digits_to_int(val)
-            if n is not None:
-                return n, label
+# Do not descend into these keys when searching for a nested `zestimate` (avoid neighbor comps).
+_SKIP_ZESTIMATE_BRANCH_KEYS = frozenset(
+    {
+        "nearbyhomes",
+        "compscarouselpropertyphotos",
+        "schools",
+        "nearbycities",
+        "nearbyneighborhoods",
+        "nearbyzipcodes",
+        "taxhistory",
+        "pricehistory",
+        "pals",
+        "listedby",
+        "comps",
+    }
+)
+
+
+def _coerce_zestimate_cell(val: Any) -> int | str:
+    """Map JSON `zestimate` cell to int or the string 'not available' (null / unparseable)."""
+    if val is None:
+        return "not available"
+    if isinstance(val, bool):
+        return "not available"
+    if isinstance(val, (int, float)):
+        return int(val)
+    if isinstance(val, str):
+        n = _digits_to_int(val)
+        if n is None:
+            return "not available"
+        return n
+    return "not available"
+
+
+def _walk_zestimate_field_only(node: Any) -> int | str | None:
+    """DFS for JSON keys named exactly `zestimate` (case-insensitive), skipping large list branches."""
+    if isinstance(node, dict):
+        for k, v in node.items():
+            lk = str(k).lower()
+            if lk == "zestimate":
+                return _coerce_zestimate_cell(v)
+            if lk in _SKIP_ZESTIMATE_BRANCH_KEYS:
+                continue
+            inner = _walk_zestimate_field_only(v)
+            if inner is not None:
+                return inner
+    elif isinstance(node, list):
+        for item in node:
+            inner = _walk_zestimate_field_only(item)
+            if inner is not None:
+                return inner
     return None
+
+
+def _resolve_zestimate_strict(primary: dict[str, Any]) -> int | str:
+    """Use only the Zillow `zestimate` field (never price/tax fallbacks)."""
+    if "zestimate" in primary:
+        return _coerce_zestimate_cell(primary["zestimate"])
+    prop = primary.get("property")
+    if isinstance(prop, dict) and "zestimate" in prop:
+        return _coerce_zestimate_cell(prop["zestimate"])
+    nested = _walk_zestimate_field_only(primary)
+    if nested is not None:
+        return nested
+    return "not available"
 
 
 def _walk_homedetails_url(node: Any) -> str | None:
@@ -344,21 +387,7 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
         merged.update(it)
 
     primary = items[0]
-    if _is_enk9_zillow_actor(actor_id):
-        best = _best_home_value_int(primary)
-        if best is not None:
-            z, _src = best
-        else:
-            z = _walk_zestimate(primary)
-    else:
-        z = _walk_zestimate(merged) or _walk_zestimate(primary)
-
-    if z is None:
-        raise ValueError(
-            "Zillow did not return a Zestimate or other usable value for this property. "
-            "That often happens when the listing has no public estimate, the unit is hard to match, or the address points somewhere Zillow does not cover. "
-            "Try the same address on zillow.com, or submit the property's direct Zillow link."
-        )
+    z = _resolve_zestimate_strict(primary)
 
     prop_url = (
         _property_page_from_row(primary)

@@ -32,7 +32,7 @@ def test_enk9_actor_builds_default_input(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr("zestimate_agent.apify_backend._run_actor_and_collect", fake_run)
 
     result = fetch_zestimate_apify("32 Winspear Ave, Buffalo, NY 14214")
-    assert result.zestimate == 64706
+    assert result.zestimate == "not available"
     assert result.property_url == (
         "https://www.zillow.com/homedetails/32-Winspear-Ave-Buffalo-NY-14214/132916029_zpid/"
     )
