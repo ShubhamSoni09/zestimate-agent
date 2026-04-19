@@ -5,6 +5,7 @@ description = "Production-grade Python agent to fetch current Zillow Zestimate b
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+  "apify-client>=1.8.1",
   "beautifulsoup4>=4.12.3",
   "fastapi>=0.116.1",
   "playwright>=1.52.0",
