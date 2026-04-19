@@ -25,6 +25,7 @@ apify = [
 
 [project.scripts]
 zestimate-agent = "zestimate_agent.cli:app"
+zestimate-eval = "zestimate_agent.eval_harness:cli_entry"
 
 [build-system]
 requires = ["setuptools>=69.0"]

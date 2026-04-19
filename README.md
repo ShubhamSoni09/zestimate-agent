@@ -142,6 +142,23 @@ result = agent.get_zestimate("1600 Amphitheatre Pkwy, Mountain View, CA 94043")
 print(result.zestimate, result.property_url)
 ```
 
+## Accuracy evaluation (gold labels)
+
+The assignment asks for measurable accuracy against Zillow. This repo includes a **small harness** that compares the agent output to **frozen expected values** in `eval/gold_labels.json` (not live Zillow scraping during `pytest`).
+
+1. Edit **`eval/gold_labels.json`**: for each case, set **`expected`** to the integer Zestimate (or `"not_available"` when Zillow’s `zestimate` field is null), set **`verified_date`**, and set **`skip`: false** when the row is ready to count.
+2. Run from the **repository root** (with `.env` / proxy / Apify as needed for your backend):
+
+```bash
+zestimate-eval
+# or
+python -m zestimate_agent.eval_harness --gold eval/gold_labels.json --json-out eval/report.json
+```
+
+Exit codes: **0** = all eligible cases passed; **1** = at least one mismatch; **2** = file/config/runtime error; **3** = zero eligible cases (everything still skipped). The printed **`pass_rate_percent`** applies only to **non-skipped** cases.
+
+Offline tests in `tests/test_eval_harness.py` validate parsing and matching logic with a **mock** agent (no network).
+
 ## Tests
 
 ```bash
