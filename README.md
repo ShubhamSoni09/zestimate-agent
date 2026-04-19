@@ -88,6 +88,8 @@ If the browser shows a **CORS** error on preflight, the API rejected the `Origin
 | Variable | When |
 |----------|------|
 | `VITE_API_BASE_URL` | **Required in production builds** — full HTTPS origin of the API, e.g. `https://your-api.onrender.com` (no trailing slash). Set in Vercel → Environment Variables and **redeploy** so Vite bakes it in. |
+| `VITE_SITE_URL` | Optional — your **frontend** production origin (no trailing slash), e.g. `https://your-app.vercel.app`. Sets **canonical** and **`og:url`** after deploy. |
+| `VITE_APP_TITLE` | Optional — browser tab title (default: “Zillow Zestimate Agent”). |
 
 ### API performance & debugging
 
@@ -107,6 +109,12 @@ If the browser shows a **CORS** error on preflight, the API rejected the `Origin
 1. Connect the repo; Vercel uses root **`vercel.json`**: `npm ci` / `npm run build` inside `frontend/`, publish `frontend/dist`.
 2. Set **`VITE_API_BASE_URL`** to your public API URL (Production and Preview as needed).
 3. Redeploy after changing env vars (Vite reads them at **build** time).
+
+**Changing the site URL users see**
+
+- The **address bar hostname** is controlled in **Vercel**, not in Git: **Project → Settings → Domains** (add a custom domain) or change the **project name** (updates the default `https://<name>.vercel.app` URL).
+- After you know the **production** URL, set **`VITE_SITE_URL`** in Vercel to that exact origin (no trailing slash), e.g. `https://your-app.vercel.app`. Rebuild. The app will inject **`<link rel="canonical">`** and **`og:url`** so search and shares use the right URL.
+- Optional: **`VITE_APP_TITLE`** overrides the browser tab title (default: “Zillow Zestimate Agent”).
 
 ### Render / Docker / generic (API)
 
