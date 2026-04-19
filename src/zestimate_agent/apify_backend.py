@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 from typing import Any
 from urllib.parse import quote
 
@@ -12,6 +13,19 @@ from .models import ZestimateResult
 
 # Default Apify Actor: startUrls + addresses + propertyStatus (see Apify Input tab).
 DEFAULT_APIFY_ACTOR_ID = "ENK9p4RZHg0iVso52"
+
+_apify_client_lock = threading.Lock()
+_apify_clients: dict[str, Any] = {}
+
+
+def _get_apify_client(token: str) -> Any:
+    """Reuse one client per token (avoids TLS + client setup on every request)."""
+    with _apify_client_lock:
+        if token not in _apify_clients:
+            from apify_client import ApifyClient
+
+            _apify_clients[token] = ApifyClient(token)
+        return _apify_clients[token]
 
 
 def _digits_to_int(value: str) -> int | None:
@@ -214,13 +228,6 @@ def _run_actor_and_collect(
 
 def fetch_zestimate_apify(address: str) -> ZestimateResult:
     """Run configured Apify Actor and map first dataset row to ZestimateResult."""
-    try:
-        from apify_client import ApifyClient
-    except ImportError as exc:
-        raise RuntimeError(
-            "Apify backend requires the apify-client package. Install with: pip install -e \".[apify]\""
-        ) from exc
-
     token = os.getenv("APIFY_TOKEN", "").strip()
     if not token:
         raise ValueError("APIFY_TOKEN is not set.")
@@ -298,7 +305,12 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
             "or enable automatic map URLs (default on: APIFY_SYNTHETIC_SEARCH_URL=1)."
         )
 
-    client = ApifyClient(token)
+    try:
+        client = _get_apify_client(token)
+    except ImportError as exc:
+        raise RuntimeError(
+            "Apify backend requires the apify-client package. Install with: pip install -e \".[apify]\""
+        ) from exc
     run, items = _run_actor_and_collect(client, actor_id, run_input)
 
     if (

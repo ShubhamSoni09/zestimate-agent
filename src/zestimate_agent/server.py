@@ -14,6 +14,7 @@ load_project_dotenv()
 
 from .address_validation import validate_us_property_address
 from .client import ZillowBlockedError, ZillowEstimateAgent, resolve_cookie_file_path
+from .response_cache import get_cached, set_cached
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,9 @@ def zestimate(req: ZestimateRequest) -> ZestimateResponse:
         address = validate_us_property_address(req.address)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cached = get_cached(address)
+    if cached is not None:
+        return ZestimateResponse(**cached.__dict__)
     agent = ZillowEstimateAgent()
     try:
         result = agent.get_zestimate(address)
@@ -147,5 +151,6 @@ def zestimate(req: ZestimateRequest) -> ZestimateResponse:
         if _zillow_debug_errors():
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         raise HTTPException(status_code=500, detail="Internal error") from exc
+    set_cached(address, result)
     return ZestimateResponse(**result.__dict__)
 
