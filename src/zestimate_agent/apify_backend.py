@@ -16,6 +16,41 @@ DEFAULT_APIFY_ACTOR_ID = "HGPHGu8INtQpCeF3x"
 
 _apify_client_lock = threading.Lock()
 _apify_clients: dict[str, Any] = {}
+_STATE_RE = re.compile(
+    r"\b(?:AK|AL|AR|AZ|CA|CO|CT|DC|DE|FL|GA|HI|IA|ID|IL|IN|KS|KY|LA|MA|MD|ME|MI|MN|MO|MS|MT|NC|ND|NE|NH|NJ|NM|NV|NY|OH|OK|OR|PA|PR|RI|SC|SD|TN|TX|UT|VA|VI|VT|WA|WI|WV|WY)\b",
+    re.IGNORECASE,
+)
+_ZIP_RE = re.compile(r"\b(\d{5})(?:-\d{4})?\b")
+_COMMON_STREET_WORDS = frozenset(
+    {
+        "st",
+        "street",
+        "ave",
+        "avenue",
+        "rd",
+        "road",
+        "dr",
+        "drive",
+        "ln",
+        "lane",
+        "blvd",
+        "boulevard",
+        "ct",
+        "court",
+        "pl",
+        "place",
+        "cir",
+        "circle",
+        "ter",
+        "terrace",
+        "way",
+        "unit",
+        "apt",
+        "apartment",
+        "ste",
+        "suite",
+    }
+)
 
 
 def _get_apify_client(token: str) -> Any:
@@ -33,6 +68,87 @@ def _digits_to_int(value: str) -> int | None:
     if not digits:
         return None
     return int(digits)
+
+
+def _alnum_tokens(s: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", s.lower())
+
+
+def _address_parts(s: str) -> dict[str, Any]:
+    text = re.sub(r"\s+", " ", s.strip())
+    num_m = re.match(r"^\s*(\d+)", text)
+    zip_m = _ZIP_RE.search(text)
+    state_m = _STATE_RE.search(text)
+    toks = _alnum_tokens(text)
+    street_tokens = [t for t in toks if not t.isdigit() and t not in _COMMON_STREET_WORDS]
+    return {
+        "number": num_m.group(1) if num_m else None,
+        "zip": zip_m.group(1) if zip_m else None,
+        "state": state_m.group(0).upper() if state_m else None,
+        "street_tokens": set(street_tokens),
+        "raw": text,
+    }
+
+
+def _row_address_candidates(row: dict[str, Any]) -> list[str]:
+    out: list[str] = []
+    for k in (
+        "address",
+        "Address",
+        "formattedAddress",
+        "fullAddress",
+        "streetAddress",
+        "PropertyAddress",
+    ):
+        v = row.get(k)
+        if isinstance(v, str):
+            out.append(v)
+        elif isinstance(v, dict):
+            parts = [
+                str(v.get("streetAddress") or "").strip(),
+                str(v.get("city") or "").strip(),
+                str(v.get("state") or "").strip(),
+                str(v.get("zipcode") or v.get("zipCode") or "").strip(),
+            ]
+            joined = ", ".join([p for p in parts if p])
+            if joined:
+                out.append(joined)
+    hdp = row.get("hdpUrl")
+    if isinstance(hdp, str) and "/homedetails/" in hdp:
+        slug = hdp.split("/homedetails/", 1)[1].split("/", 1)[0]
+        if slug:
+            out.append(slug.replace("-", " "))
+    return out
+
+
+def _row_matches_query(row: dict[str, Any], query_parts: dict[str, Any]) -> bool:
+    query_num = query_parts.get("number")
+    query_zip = query_parts.get("zip")
+    query_state = query_parts.get("state")
+    query_street: set[str] = query_parts.get("street_tokens", set())
+
+    for cand in _row_address_candidates(row):
+        p = _address_parts(cand)
+        if query_num and p.get("number") and p["number"] != query_num:
+            continue
+        if query_zip and p.get("zip") and p["zip"] != query_zip:
+            continue
+        if query_state and p.get("state") and p["state"] != query_state:
+            continue
+        # Require at least one meaningful street token overlap to avoid nearby/loose matches.
+        cand_street: set[str] = p.get("street_tokens", set())
+        if query_street and cand_street and not (query_street & cand_street):
+            continue
+        # Candidate is acceptable when no known component conflicts and street overlaps when available.
+        return True
+    return False
+
+
+def _row_is_not_found(row: dict[str, Any]) -> bool:
+    msg = str(row.get("message") or "").strip().lower()
+    if not msg:
+        return False
+    return ("404" in msg) or ("notfound" in msg) or ("not found" in msg)
 
 
 def _walk_zestimate(node: Any) -> int | None:
@@ -424,16 +540,29 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
 
     if not items:
         raise ValueError(
-            "No listing data came back for that address. "
-            "Zillow may not have a match for how it was searched, or the property may not appear in results yet. "
-            "Try the full street address, or confirm the home shows on Zillow."
+            f"Listing does not exist on Zillow for address: {clean}. "
+            "Try the full street address and confirm the home appears on Zillow."
         )
 
-    z = _resolve_zestimate_from_items(items)
+    if all(_row_is_not_found(row) for row in items):
+        raise ValueError(
+            f"Listing does not exist on Zillow for address: {clean}. "
+            "Try the full street address and confirm the home appears on Zillow."
+        )
+
+    query_parts = _address_parts(clean)
+    matched_items = [row for row in items if _row_matches_query(row, query_parts)]
+    if not matched_items:
+        raise ValueError(
+            f"Listing does not exist on Zillow for address: {clean}. "
+            "Try the full street address and confirm the home appears on Zillow."
+        )
+
+    z = _resolve_zestimate_from_items(matched_items)
     merged: dict[str, Any] = {}
-    for it in items:
+    for it in matched_items:
         merged.update(it)
-    primary = items[0]
+    primary = matched_items[0]
     property_url = (
         _property_page_from_row(primary)
         or _walk_property_url(primary)

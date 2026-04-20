@@ -48,7 +48,13 @@ def test_enk9_prefers_zestimate_over_price(monkeypatch: pytest.MonkeyPatch) -> N
     ) -> tuple[dict[str, Any], list[dict]]:
         return (
             {"id": "1", "defaultDatasetId": "ds1"},
-            [{"zestimate": 300_000, "price": 64706, "hdpUrl": "/homedetails/x/1_zpid/"}],
+            [
+                {
+                    "zestimate": 300_000,
+                    "price": 64706,
+                    "hdpUrl": "/homedetails/32-Winspear-Ave-Buffalo-NY-14214/1_zpid/",
+                }
+            ],
         )
 
     monkeypatch.setenv("APIFY_TOKEN", "dummy")
@@ -69,7 +75,10 @@ def test_enk9_optional_dataset_id_and_start_urls(monkeypatch: pytest.MonkeyPatch
         run_input: dict[str, Any],
     ) -> tuple[dict[str, Any], list[dict]]:
         captured.append(run_input)
-        return ({"id": "1", "defaultDatasetId": "ds1"}, [{"zestimate": 100, "hdpUrl": "/homedetails/x/1_zpid/"}])
+        return (
+            {"id": "1", "defaultDatasetId": "ds1"},
+            [{"zestimate": 100, "hdpUrl": "/homedetails/18-Zelma-Dr-Greenville-SC-29617/1_zpid/"}],
+        )
 
     monkeypatch.setenv("APIFY_TOKEN", "dummy")
     monkeypatch.setenv("APIFY_ACTOR_ID", "ENK9p4RZHg0iVso52")
