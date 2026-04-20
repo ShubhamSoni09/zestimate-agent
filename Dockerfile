@@ -7,7 +7,8 @@ ENV PYTHONUNBUFFERED=1
 COPY pyproject.toml README.md ./
 COPY src ./src
 
-RUN pip install --no-cache-dir .
+# Include apify so ZILLOW_BACKEND=apify works in production (apify-client is optional in pyproject).
+RUN pip install --no-cache-dir ".[apify]"
 
 EXPOSE 8000
 

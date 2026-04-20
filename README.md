@@ -53,10 +53,10 @@ For production builds (Vercel), set **`VITE_API_BASE_URL`** to your API’s HTTP
 
 ```bash
 pip install -e .
-zestimate-eval
+zestimate-eval --gold path/to/your_gold_labels.json
 ```
 
-Uses **`eval/gold_labels.json`**. See that file and **`src/zestimate_agent/eval_harness.py`** for details.
+Provide a JSON file in the format expected by **`src/zestimate_agent/eval_harness.py`** (`cases` array with `id`, `address`, `expected`, optional `skip`).
 
 ## Notes
 
@@ -66,4 +66,4 @@ Uses **`eval/gold_labels.json`**. See that file and **`src/zestimate_agent/eval_
 - **Vercel:** **`VITE_*`** vars are read at **build** time — change them in the Vercel dashboard, then **redeploy** the frontend.
 - **Caching:** successful **`/zestimate`** responses can be cached in memory (**`ZESTIMATE_CACHE_TTL_SECS`**, default 300s). Set **`0`** to disable if you need always-fresh values.
 - **Zestimate field:** the API uses Zillow’s **`zestimate`** field only (no substitute from list price or tax value). If Zillow has no public Zestimate, the API returns **`"not available"`**.
-- **Accuracy claims:** any pass rate comes from **`zestimate-eval`** over your gold file — expand **`eval/gold_labels.json`** with verified expectations before reporting a percentage.
+- **Accuracy claims:** any pass rate comes from **`zestimate-eval --gold …`** over a gold file you maintain with verified expectations.

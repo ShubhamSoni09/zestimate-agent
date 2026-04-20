@@ -3,8 +3,8 @@ Offline / live evaluation against gold JSON labels.
 
 Run from repo root (after pip install -e ".[dev]" and optional Playwright/Apify env):
 
-  zestimate-eval
-  zestimate-eval --gold eval/gold_labels.json --json-out eval/report.json
+  zestimate-eval --gold path/to/gold_labels.json
+  zestimate-eval --gold path/to/gold_labels.json --json-out path/to/report.json
 
 Exit 0 only when every non-skipped case matches. Skipped cases (skip: true or
 expected: null) are reported but do not affect pass rate.
@@ -220,12 +220,12 @@ def _print_summary(summary: dict[str, Any]) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="Evaluate agent vs eval/gold_labels.json")
+    p = argparse.ArgumentParser(description="Evaluate agent vs a gold-labels JSON file.")
     p.add_argument(
         "--gold",
         type=Path,
-        default=Path("eval/gold_labels.json"),
-        help="Path to gold labels JSON (default: eval/gold_labels.json)",
+        required=True,
+        help="Path to gold labels JSON (schema: see eval_harness.load_gold_cases).",
     )
     p.add_argument(
         "--json-out",
