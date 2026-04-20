@@ -14,7 +14,7 @@ Stack: **React + Vite** frontend (e.g. on Vercel) calling a **FastAPI** API (e.g
 | **React + Vite** (`frontend/`) | Static UI; calls the API using `VITE_API_BASE_URL` in production |
 | **Backend** | **Apify** actors via `ZILLOW_BACKEND=apify` (see `.env.example` for optional **Playwright** mode) |
 
-Root **`vercel.json`**: install/build in `frontend/`, output `frontend/dist`. **`Dockerfile`**: runs the API with uvicorn.
+**Vercel:** If the project **Root Directory** is **`frontend`** (typical for this monorepo), Vercel reads **`frontend/vercel.json`** (`npm ci` / `npm run build` / `dist`). If the root directory is the **repo root** instead, use the root **`vercel.json`** (`cd frontend && …` / `frontend/dist`). **`Dockerfile`**: runs the API with uvicorn.
 
 ## Setup
 
