@@ -389,5 +389,5 @@ class ZillowEstimateAgent:
         return ZestimateResult(
             address=clean_address,
             zestimate=zestimate,
-            property_url=property_url,
+            property_url=property_url or search_url,
         )

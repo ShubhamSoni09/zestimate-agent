@@ -12,13 +12,14 @@ def test_accepts_buffalo_style() -> None:
     assert validate_us_property_address("32 Winspear Ave, Buffalo, NY 14214")
 
 
-def test_accepts_zillow_url() -> None:
-    u = "https://www.zillow.com/homedetails/foo/132916029_zpid/"
-    assert validate_us_property_address(u) == u
+def test_rejects_zillow_url() -> None:
+    with pytest.raises(ValueError, match="US-style"):
+        validate_us_property_address("https://www.zillow.com/homedetails/foo/132916029_zpid/")
 
 
-def test_accepts_zpid() -> None:
-    assert validate_us_property_address("132916029") == "132916029"
+def test_rejects_zpid() -> None:
+    with pytest.raises(ValueError, match="US-style"):
+        validate_us_property_address("132916029")
 
 
 def test_accepts_zip_plus_four() -> None:
@@ -44,7 +45,7 @@ def test_rejects_bare_zip() -> None:
 
 
 def test_rejects_non_zillow_http_url() -> None:
-    with pytest.raises(ValueError, match="Zillow"):
+    with pytest.raises(ValueError, match="US-style"):
         validate_us_property_address("https://example.com/listing")
 
 

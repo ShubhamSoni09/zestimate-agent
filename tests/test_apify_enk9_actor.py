@@ -33,9 +33,6 @@ def test_enk9_actor_builds_default_input(monkeypatch: pytest.MonkeyPatch) -> Non
 
     result = fetch_zestimate_apify("32 Winspear Ave, Buffalo, NY 14214")
     assert result.zestimate == "not available"
-    assert result.property_url == (
-        "https://www.zillow.com/homedetails/32-Winspear-Ave-Buffalo-NY-14214/132916029_zpid/"
-    )
     inp = captured[0]
     assert inp["addresses"] == ["32 Winspear Ave, Buffalo, NY 14214"]
     assert inp["propertyStatus"] == "RECENTLY_SOLD"

@@ -152,6 +152,8 @@ def zestimate(req: ZestimateRequest) -> ZestimateResponse:
         if _zillow_debug_errors():
             raise HTTPException(status_code=500, detail=str(exc)) from exc
         raise HTTPException(status_code=500, detail="Internal error") from exc
-    set_cached(address, result)
+    # Cache only successful numeric values; avoid pinning transient "not available" misses.
+    if isinstance(result.zestimate, int):
+        set_cached(address, result)
     return ZestimateResponse(**result.__dict__)
 

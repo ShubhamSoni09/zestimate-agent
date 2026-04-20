@@ -35,7 +35,6 @@ def get(
             {
                 "address": result.address,
                 "zestimate": result.zestimate,
-                "property_url": result.property_url,
             },
             indent=2,
         )

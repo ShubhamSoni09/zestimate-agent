@@ -9,7 +9,6 @@ const US_STATE_ABBR =
 
 const RE_STATE = new RegExp(`\\b(?:${US_STATE_ABBR})\\b`, 'i')
 const RE_ZIP_END = /\b\d{5}(?:-\d{4})?\s*$/
-const RE_ZPID = /^\d{6,12}$/
 
 export function validateUsPropertyAddress(raw) {
   const s = (raw ?? '').trim().replace(/\s+/g, ' ')
@@ -18,21 +17,6 @@ export function validateUsPropertyAddress(raw) {
   }
   if (s.length > 500) {
     return { ok: false, message: 'Address is too long (max 500 characters).' }
-  }
-
-  const low = s.toLowerCase()
-  if (low.startsWith('http://') || low.startsWith('https://')) {
-    if (low.includes('zillow.com')) {
-      return { ok: true, normalized: s }
-    }
-    return {
-      ok: false,
-      message: 'Only Zillow URLs are accepted as links (must contain zillow.com).',
-    }
-  }
-
-  if (RE_ZPID.test(s)) {
-    return { ok: true, normalized: s }
   }
 
   if (RE_STATE.test(s)) {
@@ -52,8 +36,7 @@ export function validateUsPropertyAddress(raw) {
 
   return {
     ok: false,
-    message:
-      'Enter a US-style property address (street, city, ST and ZIP), a Zillow homedetails/search URL, or a numeric ZPID.',
+    message: 'Enter a US-style property address (street, city, ST and ZIP).',
   }
 }
 
@@ -61,8 +44,6 @@ export function validateUsPropertyAddress(raw) {
 export function shouldValidateOnBlur(value) {
   const t = (value ?? '').trim().replace(/\s+/g, ' ')
   if (t.length < 8) return false
-  if (/^https?:\/\//i.test(t)) return true
-  if (RE_ZPID.test(t)) return true
   if (RE_STATE.test(t)) return true
   if (RE_ZIP_END.test(t)) return true
   if (t.includes(',')) return true

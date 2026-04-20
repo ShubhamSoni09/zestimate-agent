@@ -38,6 +38,7 @@ def _apify_config_fingerprint() -> str:
             "APIFY_EXTRACTION_METHOD",
             "APIFY_SEARCH_RESULTS_DATASET_ID",
             "APIFY_SCRAPE_TYPE",
+            "APIFY_DATASET_ITEM_LIMIT",
         )
     )
     return hashlib.sha256(parts.encode("utf-8", errors="replace")).hexdigest()[:20]

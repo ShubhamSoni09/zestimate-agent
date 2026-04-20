@@ -161,10 +161,8 @@ def run_eval(
         eligible += 1
         err: str | None = None
         actual_norm: int | str | None = None
-        prop_url: str | None = None
         try:
             got = agent.get_zestimate(c.address)
-            prop_url = got.property_url
             actual_norm = _normalize_actual(got.zestimate)
             ok = zestimate_values_match(c.expected, got.zestimate)
         except Exception as exc:
@@ -179,7 +177,6 @@ def run_eval(
                 "expected": c.expected,
                 "actual": actual_norm,
                 "match": ok,
-                "property_url": prop_url,
                 "error": err,
                 "verified_date": c.verified_date,
             }

@@ -6,32 +6,32 @@
 html {
   min-height: 100%;
   min-height: 100dvh;
-  background-color: #e8eef9;
+  background-color: #050a12;
   background-image:
-    radial-gradient(ellipse 120% 70% at 50% -25%, rgba(99, 102, 241, 0.22), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(14, 165, 233, 0.12), transparent 45%),
-    radial-gradient(ellipse 55% 45% at 0% 100%, rgba(99, 102, 241, 0.1), transparent 50%),
-    linear-gradient(155deg, #dbeafe 0%, #eef2ff 38%, #e0f2fe 72%, #f0f9ff 100%),
+    radial-gradient(ellipse 100% 60% at 50% -15%, rgba(56, 189, 248, 0.18), transparent 50%),
+    radial-gradient(ellipse 50% 45% at 100% 20%, rgba(99, 102, 241, 0.2), transparent 45%),
+    radial-gradient(ellipse 45% 40% at 0% 85%, rgba(34, 211, 238, 0.08), transparent 50%),
+    linear-gradient(165deg, #020617 0%, #0f172a 35%, #111c3a 70%, #0c1929 100%),
     repeating-linear-gradient(
       0deg,
       transparent,
       transparent 39px,
-      rgba(15, 23, 42, 0.045) 39px,
-      rgba(15, 23, 42, 0.045) 40px
+      rgba(148, 163, 184, 0.06) 39px,
+      rgba(148, 163, 184, 0.06) 40px
     ),
     repeating-linear-gradient(
       90deg,
       transparent,
       transparent 39px,
-      rgba(15, 23, 42, 0.045) 39px,
-      rgba(15, 23, 42, 0.045) 40px
+      rgba(148, 163, 184, 0.06) 39px,
+      rgba(148, 163, 184, 0.06) 40px
     ),
     repeating-linear-gradient(
       -19deg,
       transparent,
       transparent 79px,
-      rgba(59, 130, 246, 0.04) 79px,
-      rgba(59, 130, 246, 0.04) 80px
+      rgba(56, 189, 248, 0.035) 79px,
+      rgba(56, 189, 248, 0.035) 80px
     );
   background-size: auto, auto, auto, auto, 40px 40px, 40px 40px, auto;
   background-attachment: fixed;
@@ -43,47 +43,9 @@ body {
   min-height: 100%;
   min-height: 100dvh;
   background-color: transparent;
-  color: #111827;
+  color: #f1f5f9;
   /* Home indicator / gesture bar */
   padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-@media (prefers-color-scheme: dark) {
-  html {
-    background-color: #050a12;
-    background-image:
-      radial-gradient(ellipse 100% 60% at 50% -15%, rgba(56, 189, 248, 0.18), transparent 50%),
-      radial-gradient(ellipse 50% 45% at 100% 20%, rgba(99, 102, 241, 0.2), transparent 45%),
-      radial-gradient(ellipse 45% 40% at 0% 85%, rgba(34, 211, 238, 0.08), transparent 50%),
-      linear-gradient(165deg, #020617 0%, #0f172a 35%, #111c3a 70%, #0c1929 100%),
-      repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 39px,
-        rgba(148, 163, 184, 0.06) 39px,
-        rgba(148, 163, 184, 0.06) 40px
-      ),
-      repeating-linear-gradient(
-        90deg,
-        transparent,
-        transparent 39px,
-        rgba(148, 163, 184, 0.06) 39px,
-        rgba(148, 163, 184, 0.06) 40px
-      ),
-      repeating-linear-gradient(
-        -19deg,
-        transparent,
-        transparent 79px,
-        rgba(56, 189, 248, 0.035) 79px,
-        rgba(56, 189, 248, 0.035) 80px
-      );
-    background-size: auto, auto, auto, auto, 40px 40px, 40px 40px, auto;
-    background-attachment: fixed;
-  }
-
-  body {
-    color: #f1f5f9;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

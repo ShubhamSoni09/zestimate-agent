@@ -70,7 +70,7 @@ function App() {
 
     const trimmed = address.trim()
     if (!trimmed) {
-      setFieldError('Please enter a US property address, Zillow URL, or ZPID.')
+      setFieldError('Please enter a US property address.')
       return
     }
 
@@ -112,7 +112,7 @@ function App() {
     <main className="container">
       <h1>Zillow Estimate Agent</h1>
       <p className="subtitle">
-        US street address (with or without commas), a Zillow property URL, or a ZPID.
+        Enter a full US property address: street, city, state (2-letter code), and ZIP.
       </p>
 
       <form

@@ -11,8 +11,8 @@ from urllib.parse import quote
 
 from .models import ZestimateResult
 
-# Default Apify Actor: startUrls + addresses + propertyStatus (see Apify Input tab).
-DEFAULT_APIFY_ACTOR_ID = "ENK9p4RZHg0iVso52"
+# Default Apify Actor: accepts `scrape_type` + `multiple_input_box`.
+DEFAULT_APIFY_ACTOR_ID = "HGPHGu8INtQpCeF3x"
 
 _apify_client_lock = threading.Lock()
 _apify_clients: dict[str, Any] = {}
@@ -158,6 +158,19 @@ def _resolve_zestimate_strict(primary: dict[str, Any]) -> int | str:
     return "not available"
 
 
+def _resolve_zestimate_from_items(items: list[dict[str, Any]]) -> int | str:
+    """Prefer any numeric zestimate in returned rows; else return 'not available'."""
+    fallback: int | str = "not available"
+    for row in items:
+        z = _resolve_zestimate_strict(row)
+        if isinstance(z, int):
+            return z
+        # Keep the first explicit non-numeric result only as a fallback.
+        if fallback == "not available" and z != "not available":
+            fallback = z
+    return fallback
+
+
 def _walk_homedetails_url(node: Any) -> str | None:
     """First zillow.com/homedetails/ URL found in nested strings."""
     if isinstance(node, dict):
@@ -181,28 +194,32 @@ def _zillow_search_url(address: str) -> str:
     return f"https://www.zillow.com/homes/{slug}_rb/"
 
 
+def _hgph_input_variants(clean: str) -> list[str]:
+    """Input variants for HGPH actor; helps when unit formatting affects matching."""
+    variants: list[str] = [clean]
+    # "Unit 1507" -> "#1507"
+    v_hash = re.sub(r"\bunit\s+(\w+)\b", r"#\1", clean, flags=re.IGNORECASE)
+    if v_hash != clean:
+        variants.append(v_hash)
+    # "#1507" -> "Unit 1507"
+    v_unit = re.sub(r"#\s*([A-Za-z0-9-]+)\b", r"Unit \1", clean)
+    if v_unit != clean and v_unit not in variants:
+        variants.append(v_unit)
+    return variants
+
+
 def _is_maxcopell_zillow_search_scraper(actor_id: str) -> bool:
     return "maxcopell/zillow-scraper" in actor_id.strip().lower()
 
 
-def _is_hgph_zpid_actor(actor_id: str) -> bool:
-    """Apify store actor that accepts scrape_type + multiple_input_box (address, ZPID, or Zillow URL)."""
+def _is_hgph_actor(actor_id: str) -> bool:
+    """Apify store actor that accepts scrape_type + multiple_input_box."""
     return "hgphgu8intqpcef3x" in actor_id.strip().lower()
 
 
 def _is_enk9_zillow_actor(actor_id: str) -> bool:
     """Actor ENK9p4RZHg0iVso52 — startUrls, addresses[], propertyStatus, extractBuildingUnits, optional dataset id."""
     return "enk9p4rzhg0ivso52" in actor_id.strip().lower()
-
-
-def _is_zillow_map_search_url(s: str) -> bool:
-    """True if this looks like a browser map-search URL (actor expects searchQueryState)."""
-    t = s.strip()
-    if not t.lower().startswith("http"):
-        return False
-    if "zillow.com" not in t.lower():
-        return False
-    return "searchquerystate" in t.lower()
 
 
 def _synthetic_map_url_enabled() -> bool:
@@ -235,9 +252,25 @@ def _maxcopell_map_search_url_from_users_term(users_search_term: str) -> str:
     return f"https://www.zillow.com/homes/for_sale/?searchQueryState={enc}"
 
 
+def _dataset_item_limit() -> int | None:
+    """Cap rows read from the default dataset (large runs = many HTTP round-trips). 0 or unset = no cap."""
+    raw = os.getenv("APIFY_DATASET_ITEM_LIMIT", "120").strip().lower()
+    if raw in ("", "0", "all", "none", "unlimited"):
+        return None
+    try:
+        n = int(raw)
+        return n if n > 0 else None
+    except ValueError:
+        return 120
+
+
 def _dataset_items(client: Any, dataset_id: str) -> list[dict]:
     items: list[dict] = []
-    for item in client.dataset(dataset_id).iterate_items():
+    lim = _dataset_item_limit()
+    kwargs: dict[str, Any] = {}
+    if lim is not None:
+        kwargs["limit"] = lim
+    for item in client.dataset(dataset_id).iterate_items(**kwargs):
         if isinstance(item, dict):
             items.append(item)
     return items
@@ -314,18 +347,15 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
         ds_id = os.getenv("APIFY_SEARCH_RESULTS_DATASET_ID", "").strip()
         if ds_id:
             run_input["searchResultsDatasetId"] = ds_id
-    elif _is_hgph_zpid_actor(actor_id):
-        scrape_type = os.getenv("APIFY_SCRAPE_TYPE", "zpids").strip() or "zpids"
+    elif _is_hgph_actor(actor_id):
         run_input = {
-            "scrape_type": scrape_type,
+            "scrape_type": "property_addresses",
             "multiple_input_box": clean,
         }
     else:
         literal = os.getenv("APIFY_ZILLOW_SEARCH_URL", "").strip()
         if literal:
             search_url = literal
-        elif _is_zillow_map_search_url(clean):
-            search_url = clean
         elif (
             _is_maxcopell_zillow_search_scraper(actor_id)
             and _synthetic_map_url_enabled()
@@ -344,7 +374,7 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
         raise ValueError(
             "Apify actor maxcopell/zillow-scraper only accepts Zillow URLs that include "
             "`?searchQueryState=...`. Plain `/homes/<address>_rb/` links usually return an empty dataset. "
-            "Set APIFY_ZILLOW_SEARCH_URL, paste a map URL into the address field, set APIFY_INPUT_JSON, "
+            "Set APIFY_ZILLOW_SEARCH_URL, set APIFY_INPUT_JSON, "
             "or enable automatic map URLs (default on: APIFY_SYNTHETIC_SEARCH_URL=1)."
         )
 
@@ -375,21 +405,36 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
         alt_input2 = {"searchUrls": [{"url": search_url}]}
         run, items = _run_actor_and_collect(client, actor_id, alt_input2)
 
+    if (
+        not raw_override
+        and _is_hgph_actor(actor_id)
+        and not isinstance(_resolve_zestimate_from_items(items), int)
+    ):
+        scrape_type = "property_addresses"
+        for candidate in _hgph_input_variants(clean)[1:]:
+            alt_hgph_input = {
+                "scrape_type": scrape_type,
+                "multiple_input_box": candidate,
+            }
+            _run2, items2 = _run_actor_and_collect(client, actor_id, alt_hgph_input)
+            if items2:
+                items = items2
+            if isinstance(_resolve_zestimate_from_items(items), int):
+                break
+
     if not items:
         raise ValueError(
             "No listing data came back for that address. "
             "Zillow may not have a match for how it was searched, or the property may not appear in results yet. "
-            "Try the full street address, paste the URL from the property's Zillow page, or confirm the home shows on Zillow."
+            "Try the full street address, or confirm the home shows on Zillow."
         )
 
+    z = _resolve_zestimate_from_items(items)
     merged: dict[str, Any] = {}
     for it in items:
         merged.update(it)
-
     primary = items[0]
-    z = _resolve_zestimate_strict(primary)
-
-    prop_url = (
+    property_url = (
         _property_page_from_row(primary)
         or _walk_property_url(primary)
         or _walk_property_url(merged)
@@ -401,5 +446,5 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
     return ZestimateResult(
         address=clean,
         zestimate=z,
-        property_url=prop_url,
+        property_url=property_url,
     )

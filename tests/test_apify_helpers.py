@@ -1,7 +1,9 @@
 """Unit tests for Apify backend URL building and JSON walking helpers."""
 
+import pytest
+
+from zestimate_agent import apify_backend
 from zestimate_agent.apify_backend import (
-    _walk_property_url,
     _walk_zestimate,
     _zillow_search_url,
 )
@@ -25,6 +27,11 @@ def test_walk_zestimate_string_money() -> None:
     assert _walk_zestimate(payload) == 64706
 
 
-def test_walk_property_url() -> None:
-    payload = {"meta": {"url": "https://www.zillow.com/homedetails/foo/123_zpid/"}}
-    assert _walk_property_url(payload) == "https://www.zillow.com/homedetails/foo/123_zpid/"
+def test_dataset_item_limit_zero_means_unlimited(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APIFY_DATASET_ITEM_LIMIT", "0")
+    assert apify_backend._dataset_item_limit() is None
+
+
+def test_dataset_item_limit_numeric(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("APIFY_DATASET_ITEM_LIMIT", "15")
+    assert apify_backend._dataset_item_limit() == 15
