@@ -4,7 +4,7 @@
 
 Takes a **US property address**, **Zillow property URL**, or **ZPID** and returns the **`zestimate`** value from Zillow (an **integer** when Zillow exposes one, or **`"not available"`** when it does not), plus the **property URL**.
 
-Typical stack: **React + Vite** frontend (e.g. on Vercel) calling a **FastAPI** API (e.g. on Render) that uses **Apify** (`ZILLOW_BACKEND=apify`) to fetch listing data.
+Stack: **React + Vite** frontend (e.g. on Vercel) calling a **FastAPI** API (e.g. on Render) that uses **Apify** (`ZILLOW_BACKEND=apify`) to fetch listing data.
 
 ## Architecture
 
