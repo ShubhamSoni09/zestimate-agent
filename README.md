@@ -1,6 +1,6 @@
 # Zillow Estimate Agent
 
-Takes a **US property address**, **Zillow property URL**, or **ZPID** and returns the **Zillow Zestimate** (integer) plus the **property URL**.
+Takes a **US property address**, **Zillow property URL**, or **ZPID** and returns the **Zillow `zestimate` field** (integer when present, or the string **`"not available"`** when Zillow has no public Zestimate) plus the **property URL**.
 
 ## Architecture
 
@@ -8,7 +8,7 @@ Takes a **US property address**, **Zillow property URL**, or **ZPID** and return
 |-------|------|
 | **FastAPI** (`src/zestimate_agent/server.py`) | `POST /zestimate`, `GET /health`, CORS for the UI |
 | **React + Vite** (`frontend/`) | Static UI; talks to the API over HTTPS |
-| **Backends** | **Playwright** (Chromium + HTML parsing) or **Apify** (`ZILLOW_BACKEND=apify`) |
+| **Backend** | **Apify** actors (`ZILLOW_BACKEND=apify`) — typical for Render/production |
 
 Typical production layout:
 
@@ -19,17 +19,21 @@ The browser calls your **API origin** directly, so you must configure **CORS** o
 
 ## Local development
 
-### Python API
+### Python API (Apify)
 
 ```bash
 python -m venv .venv
 .venv\Scripts\activate
 pip install -e ".[dev]"
-playwright install chromium
+```
+
+Copy `.env.example` → `.env` and set at least **`ZILLOW_BACKEND=apify`** and **`APIFY_TOKEN`**.
+
+```bash
 python -m uvicorn zestimate_agent.server:app --host 127.0.0.1 --port 8000
 ```
 
-- **`apify-client`** is included in the default package dependencies so `ZILLOW_BACKEND=apify` works with a plain `pip install .` (e.g. on Render). Optional group `.[apify]` still exists for compatibility.
+- **`apify-client`** is included in the default package dependencies so Apify works with a plain `pip install .` (e.g. on Render). Optional group `.[apify]` still exists for compatibility.
 
 ### React UI
 
@@ -54,24 +58,21 @@ curl -s http://127.0.0.1:8000/health
 curl -s -X POST http://127.0.0.1:8000/zestimate -H "Content-Type: application/json" -d "{\"address\":\"1600 Amphitheatre Pkwy, Mountain View, CA 94043\"}"
 ```
 
-- **`POST /zestimate`** — body: `{"address":"..."}`. Response: `address`, `zestimate`, `property_url`.
+- **`POST /zestimate`** — body: `{"address":"..."}`. Response: `address`, `zestimate` (int or `"not available"`), `property_url`.
 - **`GET /health`** — `status`, `backend`, `apify_configured`, `proxy_configured`, `cookies_configured`, `zillow_debug` (whether `ZILLOW_DEBUG` is treated as on).
-- Invalid input → **400**; detected Zillow block (Playwright) → **403**; Apify client errors → **502**; other server bugs → **500** (generic `"Internal error"` unless debug is on).
+- Invalid input → **400**; Apify client errors → **502**; other server bugs → **500** (generic `"Internal error"` unless debug is on). If you use the optional Playwright backend, Zillow bot-wall detection may return **403**.
 
 ## Configuration
 
 Copy `.env.example` to `.env` in the project root (loaded automatically by the API).
 
-### Core
+### Core (Apify)
 
 | Variable | Purpose |
 |----------|---------|
-| `ZILLOW_BACKEND` | `playwright` (default) or `apify` |
-| `APIFY_TOKEN` | Required when `ZILLOW_BACKEND=apify` |
-| `APIFY_ACTOR_ID` | Override default actor (`ENK9p4RZHg0iVso52`) |
-| `ZILLOW_PROXY_SERVER`, `ZILLOW_PROXY_USERNAME`, `ZILLOW_PROXY_PASSWORD` | Optional proxy for Playwright |
-| `ZILLOW_COOKIES_FILE` / `ZILLOW_COOKIES_JSON` | Optional cookies; default file `cookies/zillow.json` (gitignored) |
-| `ZILLOW_HEADLESS`, `ZILLOW_RETRY_HEADED_ON_BLOCK` | Browser visibility and headed retry after a block |
+| `ZILLOW_BACKEND` | Set to **`apify`** for Apify-backed runs (recommended for production). |
+| `APIFY_TOKEN` | Required when `ZILLOW_BACKEND=apify`. |
+| `APIFY_ACTOR_ID` | Override default actor (`ENK9p4RZHg0iVso52`). |
 
 ### CORS (required when UI and API are on different origins)
 
@@ -95,12 +96,20 @@ If the browser shows a **CORS** error on preflight, the API rejected the `Origin
 
 | Variable | Purpose |
 |----------|---------|
-| `ZESTIMATE_CACHE_TTL_SECS` | Default `300`. Successful `/zestimate` responses are cached in memory for this many seconds so repeat lookups skip Apify/Playwright. Set `0` to disable. |
+| `ZESTIMATE_CACHE_TTL_SECS` | Default `300`. Successful `/zestimate` responses are cached in memory for this many seconds so repeat lookups skip Apify work. Set `0` to disable. |
 | `ZILLOW_DEBUG` | `1` / `true` / `yes` / `on` — include exception text in **500** `detail` (do **not** leave on in public production). |
 
-**Playwright timing** (optional): `ZILLOW_SKIP_ZILLOW_HOME`, `ZILLOW_WARMUP_MS`, `ZILLOW_POST_SEARCH_MS`, `ZILLOW_POST_DETAIL_MS`, `ZILLOW_TIMEOUT_MS`, `ZILLOW_MAX_RETRIES`, `ZILLOW_RETRY_BACKOFF_SEC` — see `.env.example`.
-
 **Apify tuning:** `APIFY_WAIT_SECS`, `APIFY_ACTOR_TIMEOUT_SECS`, `APIFY_PROPERTY_STATUS`, `APIFY_EXTRACT_BUILDING_UNITS`, `APIFY_START_URLS_JSON`, `APIFY_SEARCH_RESULTS_DATASET_ID`, `APIFY_INPUT_JSON`, etc. — see `.env.example`. Wall time is dominated by the actor run; the API also **reuses one `ApifyClient` per token** and can **serve cached** results when `ZESTIMATE_CACHE_TTL_SECS` is not `0`.
+
+### Optional: Playwright instead of Apify
+
+If you set **`ZILLOW_BACKEND=playwright`** (or leave it unset — the code default is `playwright`), the agent drives **local Chromium** instead of Apify. Then install browsers once:
+
+```bash
+playwright install chromium
+```
+
+See **`.env.example`** for `ZILLOW_PROXY_*`, cookies, headless mode, and timing knobs (`ZILLOW_POST_SEARCH_MS`, etc.). Zillow may block headless scraping without a US residential proxy and/or cookies aligned to that IP.
 
 ## Deployment
 
@@ -124,7 +133,7 @@ If the browser shows a **CORS** error on preflight, the API rejected the `Origin
 docker compose up --build
 ```
 
-API listens on **8000**. Set production env vars (`CORS_*`, `ZILLOW_BACKEND`, `APIFY_TOKEN`, etc.) on the host.
+API listens on **8000**. Set production env vars (`CORS_*`, `ZILLOW_BACKEND=apify`, `APIFY_TOKEN`, etc.) on the host.
 
 **Render (example):**
 
@@ -147,7 +156,7 @@ print(result.zestimate, result.property_url)
 The assignment asks for measurable accuracy against Zillow. This repo includes a **small harness** that compares the agent output to **frozen expected values** in `eval/gold_labels.json` (not live Zillow scraping during `pytest`).
 
 1. Edit **`eval/gold_labels.json`**: for each case, set **`expected`** to the integer Zestimate (or `"not_available"` when Zillow’s `zestimate` field is null), set **`verified_date`**, and set **`skip`: false** when the row is ready to count.
-2. Run from the **repository root** (with `.env` / proxy / Apify as needed for your backend):
+2. Run from the **repository root** (with `.env` / Apify as needed):
 
 ```bash
 zestimate-eval
@@ -169,6 +178,5 @@ CI (`.github/workflows/ci.yml`) installs the package and runs `pytest` on pushes
 
 ## Notes
 
-- Zillow may block scrapers; cookies aligned with **IP** (e.g. US residential proxy) improve Playwright reliability.
-- Apify usage is billed on your plan; actor output shapes can change — use `APIFY_INPUT_JSON` and Apify run logs when debugging empty datasets.
+- **Apify** usage is billed on your plan; actor output shapes can change — use `APIFY_INPUT_JSON` and Apify run logs when debugging empty datasets.
 - `.env` and `cookies/*.json` are gitignored; do not commit secrets.
