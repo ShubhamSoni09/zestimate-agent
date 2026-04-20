@@ -1,0 +1,9 @@
+# Optional Render Blueprint: https://render.com/docs/infrastructure-as-code
+# Link this repo in Render → New Blueprint Instance, or align an existing Web Service
+# with runtime "Docker", Dockerfile at repo root, and health check path /health.
+services:
+  - type: web
+    name: zestimate-agent-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
