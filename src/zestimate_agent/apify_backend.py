@@ -151,34 +151,6 @@ def _row_is_not_found(row: dict[str, Any]) -> bool:
     return ("404" in msg) or ("notfound" in msg) or ("not found" in msg)
 
 
-def _walk_zestimate(node: Any) -> int | None:
-    if isinstance(node, dict):
-        for key, val in node.items():
-            lk = str(key).lower()
-            if lk in (
-                "zestimate",
-                "priceestimate",
-                "estimatedvalue",
-                "zmiddleestimate",
-                "rentzestimate",
-            ):
-                if isinstance(val, (int, float)):
-                    return int(val)
-                if isinstance(val, str):
-                    n = _digits_to_int(val)
-                    if n is not None:
-                        return n
-            found = _walk_zestimate(val)
-            if found is not None:
-                return found
-    elif isinstance(node, list):
-        for item in node:
-            found = _walk_zestimate(item)
-            if found is not None:
-                return found
-    return None
-
-
 def _walk_property_url(node: Any) -> str | None:
     if isinstance(node, dict):
         for key in ("url", "propertyUrl", "propertyURL", "listingUrl", "link", "href"):
@@ -370,14 +342,14 @@ def _maxcopell_map_search_url_from_users_term(users_search_term: str) -> str:
 
 def _dataset_item_limit() -> int | None:
     """Cap rows read from the default dataset (large runs = many HTTP round-trips). 0 or unset = no cap."""
-    raw = os.getenv("APIFY_DATASET_ITEM_LIMIT", "120").strip().lower()
+    raw = os.getenv("APIFY_DATASET_ITEM_LIMIT", "30").strip().lower()
     if raw in ("", "0", "all", "none", "unlimited"):
         return None
     try:
         n = int(raw)
         return n if n > 0 else None
     except ValueError:
-        return 120
+        return 30
 
 
 def _dataset_items(client: Any, dataset_id: str) -> list[dict]:
@@ -498,7 +470,7 @@ def fetch_zestimate_apify(address: str) -> ZestimateResult:
         client = _get_apify_client(token)
     except ImportError as exc:
         raise RuntimeError(
-            "Apify backend requires the apify-client package. Install with: pip install -e \".[apify]\""
+            "Apify backend requires the apify-client package. Install with: pip install -e ."
         ) from exc
     run, items = _run_actor_and_collect(client, actor_id, run_input)
 
